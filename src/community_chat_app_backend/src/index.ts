@@ -1,417 +1,400 @@
 import {
-    Canister,
-    Err,
-    Ok,
-    Principal,
-    Record,
-    Result,
-    StableBTreeMap,
-    Variant,
-    Vec,
-    ic,
-    nat64,
-    query,
-    text,
-    update,
-  } from "azle";
-  const User = Record({
-    id: Principal,
-    username: text,
-    groupsCrated: Vec(text),
-    createdAt: nat64,
-  });
-  const directMessage = Record({
-    from: Principal,
-    messagetext: text,
-  });
-  const message = Record({
-    id: Principal,
-    sender: Principal,
-    messageText: text,
-    createdAt: nat64,
-  });
-  type message = typeof message.tsType;
-  const Communities = Record({
-    id: Principal,
-    owner: Principal,
-    nameOfCommunity: text,
-    members: Vec(text),
-    messages: Vec(message),
-    createdAt: nat64,
-  });
-  //payloads
-  const userPayload = Record({
-    username: text,
-  });
-  
-  type User = typeof User.tsType;
-  const communitiesPayload = Record({
-    nameOfCommunity: text,
-    usernameOfCreator: text,
-  });
-  const deleteCommunityPyload = Record({
-    owner: Principal,
-    nameOfCommunty: text,
-  });
-  const joinCommunityPayload = Record({
-    username: text,
-    groupName: text,
-  });
-  const exitCommunityPayload = Record({
-    username: text,
-    groupName: text,
-  });
-  const removeUserPayload = Record({
-    owner: Principal,
-    nameOfCommunity: text,
-    user: text,
-  });
-  const sendMessagePayLoad = Record({
-    messageToSend: text,
-    communityName: text,
-    username: text,
-  });
-  const messageRetriverPayLoad = Record({
-    username: text,
-    groupname: text,
-  });
-  type Communities = typeof Communities.tsType;
-  const communityReturnType =Record({
-    name:text,
-    owner:Principal
-  })
-  type communityReturnType = typeof communityReturnType .tsType;
-  //errors
-  const communityAppErrors = Variant({
-    communityDoesNotExist: text,
-    communityAlreadyExist: text,
-    UserDoesNotExist: text,
-    EnterCorrectDetais: text,
-    GroupNameIsRequired: text,
-    NoMessageWithSuchId: text,
-    userNameAlreadyExist: text,
-    usernameIsRequired: text,
-    credentialsMissing: text,
-    onlyOwnerCanDelete: text,
-    ErrorWhenExitingGropu: text,
-    NotAMemberOfGroup: text,
-    AlreadyAmember: text,
-  });
-  type communityAppErrorsE = typeof communityAppErrors.tsType;
-  //storages
-  const userStorages = StableBTreeMap<text, User>(0);
-  const communitiesStorage = StableBTreeMap<text, Communities>(1);
-  const communityGroupStorages = StableBTreeMap<text, communityReturnType>(2);
-  export default Canister({
-    //user register to cht app
-    registerUser: update(
-      [userPayload],
-      Result(text, communityAppErrors),
-      (payload) => {
-        if (!payload.username) {
-          return Err({ usernameIsRequired: "username is required" });
-        }
-        //check if username is already taken
-        const getUser = userStorages.get(payload.username).Some;
-        if (getUser) {
-          return Err({
-            userNameAlreadyExist: "username i laready taken try another one",
-          });
-        }
-        //create user
-        const createUser: User = {
-          id: ic.caller(),
-          username: payload.username,
-          groupsCrated: [],
-          createdAt: ic.time(),
-        };
-        userStorages.insert(payload.username, createUser);
-        return Ok(`user with ${payload.username} has been created successfully`);
-      }
-    ),
-    //user create a community
-    createCommunity: update(
-      [communitiesPayload],
-      Result(text, communityAppErrors),
-      (payload) => {
-        if (!payload.nameOfCommunity) {
-          return Err({ credentialsMissing: `community name is missing` });
-        }
-        //check if community already exist
-        const findCommunity = communitiesStorage.get(
-          payload.nameOfCommunity
-        ).Some;
-        if (findCommunity) {
-          return Err({
-            communityAlreadyExist: `comunity with ${payload.nameOfCommunity} already exist`,
-          });
-        }
-        //check if user is already registered
-        const getUser = userStorages.get(payload.usernameOfCreator).Some;
-        if (!getUser) {
-          return Err({
-            UserDoesNotExist: `user with ${payload.usernameOfCreator} is not registered`,
-          });
-        }
-        //create community
-        const idOfOwner=generateId()
-        const id=ic.caller()
-        const createCommunity: Communities = {
-          id,
-          owner: ic.caller(),
-          nameOfCommunity: payload.nameOfCommunity,
-          members: [payload.usernameOfCreator],
-          messages: [],
-          createdAt: ic.time(),
-        };
-        const communityGroups:communityReturnType ={
-          name:payload.nameOfCommunity,
-          owner:id
-        }
-        communityGroupStorages.insert(
-          payload.nameOfCommunity,
-        communityGroups
-        );
-        communitiesStorage.insert(payload.nameOfCommunity, createCommunity);
-        //update on user side
-        const updateUserWithCommunity: User = {
-          ...getUser,
-          groupsCrated: [...getUser.groupsCrated, payload.nameOfCommunity],
-        };
-        userStorages.insert(payload.usernameOfCreator, updateUserWithCommunity);
-  
-        return Ok(
-          `${payload.nameOfCommunity} community has been created successfully`
-        );
-      }
-    ),
-    //get all created commuities
-    getAllCommunities: query([], Vec(communityReturnType),() => {
-      return communityGroupStorages.values();
-    }),
-    //delete community
-    deleteCommunity: update(
-      [deleteCommunityPyload],
-      Result(text, communityAppErrors),
-      (payload) => {
-        if (!payload.nameOfCommunty || !payload.owner) {
-          return Err({ credentialsMissing: "some credentials are missing" });
-        }
-        //check if community group already exist
-        const checkGroup = communitiesStorage.get(payload.nameOfCommunty).Some;
-        if (!checkGroup) {
-          return Err({
-            communityDoesNotExist: `${payload.nameOfCommunty} does not exist`,
-          });
-        }
-        //check if its owner deleting the group
-        if (checkGroup.owner.toText() !== payload.owner.toText()) {
-          return Err({
-            onlyOwnerCanDelete: "only owner can delete the community",
-          });
-        }
-        communitiesStorage.remove(payload.nameOfCommunty);
-        communityGroupStorages.remove(payload.nameOfCommunty);
-        //remove from user created community arrays
-  
-        return Ok(`${payload.nameOfCommunty} has been successufully deleted`);
-      }
-    ),
-    //users joins the community
-    joinGroup: update([joinCommunityPayload], text, (payload) => {
+  Canister,
+  Err,
+  Ok,
+  Principal,
+  Record,
+  Result,
+  StableBTreeMap,
+  Variant,
+  Vec,
+  ic,
+  nat64,
+  query,
+  text,
+  update,
+} from "azle";
+
+// Define types
+const User = Record({
+  id: Principal,
+  username: text,
+  groupsCreated: Vec(text),
+  createdAt: nat64,
+});
+const DirectMessage = Record({
+  from: Principal,
+  messageText: text,
+});
+const Message = Record({
+  id: Principal,
+  sender: Principal,
+  messageText: text,
+  createdAt: nat64,
+});
+const Communities = Record({
+  id: Principal,
+  owner: Principal,
+  nameOfCommunity: text,
+  members: Vec(text),
+  messages: Vec(Message),
+  createdAt: nat64,
+});
+
+// Payloads
+const UserPayload = Record({
+  username: text,
+});
+const CommunitiesPayload = Record({
+  nameOfCommunity: text,
+  usernameOfCreator: text,
+});
+const DeleteCommunityPayload = Record({
+  owner: Principal,
+  nameOfCommunity: text,
+});
+const JoinCommunityPayload = Record({
+  username: text,
+  groupName: text,
+});
+const ExitCommunityPayload = Record({
+  username: text,
+  groupName: text,
+});
+const RemoveUserPayload = Record({
+  owner: Principal,
+  nameOfCommunity: text,
+  user: text,
+});
+const SendMessagePayload = Record({
+  messageToSend: text,
+  communityName: text,
+  username: text,
+});
+const MessageRetrieverPayload = Record({
+  username: text,
+  groupName: text,
+});
+
+// Return Types
+const CommunityReturnType = Record({
+  name: text,
+  owner: Principal,
+});
+
+// Error Types
+const CommunityAppErrors = Variant({
+  CommunityDoesNotExist: text,
+  CommunityAlreadyExist: text,
+  UserDoesNotExist: text,
+  EnterCorrectDetails: text,
+  GroupNameIsRequired: text,
+  NoMessageWithSuchId: text,
+  UserNameAlreadyExist: text,
+  UsernameIsRequired: text,
+  CredentialsMissing: text,
+  OnlyOwnerCanDelete: text,
+  ErrorWhenExitingGroup: text,
+  NotAMemberOfGroup: text,
+  AlreadyAMember: text,
+});
+
+// Storages
+const userStorages = StableBTreeMap<text, User>(0);
+const communitiesStorage = StableBTreeMap<text, Communities>(1);
+const communityGroupStorages = StableBTreeMap<text, CommunityReturnType>(2);
+
+// Helper Functions
+function generateId(): Principal {
+  const randomBytes = new Array(29)
+    .fill(0)
+    .map(() => Math.floor(Math.random() * 256));
+  return Principal.fromUint8Array(Uint8Array.from(randomBytes));
+}
+
+function checkIfCommunityExists(nameOfCommunity: string): boolean {
+  return communitiesStorage.get(nameOfCommunity).Some != null;
+}
+
+function checkIfUserExists(username: string): boolean {
+  return userStorages.get(username).Some != null;
+}
+
+function checkIfUserInCommunity(username: string, community: Communities): boolean {
+  return community.members.includes(username);
+}
+
+// Canister Methods
+export default Canister({
+  // User registration
+  registerUser: update([UserPayload], Result(text, CommunityAppErrors), (payload) => {
+    if (!payload.username) {
+      return Err({ UsernameIsRequired: "Username is required" });
+    }
+
+    if (checkIfUserExists(payload.username)) {
+      return Err({
+        UserNameAlreadyExist: "Username is already taken, try another one",
+      });
+    }
+
+    const newUser: User = {
+      id: ic.caller(),
+      username: payload.username,
+      groupsCreated: [],
+      createdAt: ic.time(),
+    };
+
+    userStorages.insert(payload.username, newUser);
+    return Ok(`User with username ${payload.username} has been created successfully`);
+  }),
+
+  // Create a community
+  createCommunity: update([CommunitiesPayload], Result(text, CommunityAppErrors), (payload) => {
+    if (!payload.nameOfCommunity) {
+      return Err({ CredentialsMissing: "Community name is missing" });
+    }
+
+    if (checkIfCommunityExists(payload.nameOfCommunity)) {
+      return Err({
+        CommunityAlreadyExist: `Community with name ${payload.nameOfCommunity} already exists`,
+      });
+    }
+
+    const user = userStorages.get(payload.usernameOfCreator).Some;
+    if (!user) {
+      return Err({
+        UserDoesNotExist: `User with username ${payload.usernameOfCreator} is not registered`,
+      });
+    }
+
+    const communityId = generateId();
+    const newCommunity: Communities = {
+      id: communityId,
+      owner: ic.caller(),
+      nameOfCommunity: payload.nameOfCommunity,
+      members: [payload.usernameOfCreator],
+      messages: [],
+      createdAt: ic.time(),
+    };
+
+    const communityGroups: CommunityReturnType = {
+      name: payload.nameOfCommunity,
+      owner: communityId,
+    };
+
+    communityGroupStorages.insert(payload.nameOfCommunity, communityGroups);
+    communitiesStorage.insert(payload.nameOfCommunity, newCommunity);
+
+    user.groupsCreated.push(payload.nameOfCommunity);
+    userStorages.insert(payload.usernameOfCreator, user);
+
+    return Ok(`${payload.nameOfCommunity} community has been created successfully`);
+  }),
+
+  // Get all created communities
+  getAllCommunities: query([], Vec(CommunityReturnType), () => {
+    return communityGroupStorages.values();
+  }),
+
+  // Delete a community
+  deleteCommunity: update([DeleteCommunityPayload], Result(text, CommunityAppErrors), (payload) => {
+    if (!payload.nameOfCommunity || !payload.owner) {
+      return Err({ CredentialsMissing: "Some credentials are missing" });
+    }
+
+    const community = communitiesStorage.get(payload.nameOfCommunity).Some;
+    if (!community) {
+      return Err({
+        CommunityDoesNotExist: `Community ${payload.nameOfCommunity} does not exist`,
+      });
+    }
+
+    if (community.owner.toText() !== payload.owner.toText()) {
+      return Err({
+        OnlyOwnerCanDelete: "Only the owner can delete the community",
+      });
+    }
+
+    communitiesStorage.remove(payload.nameOfCommunity);
+    communityGroupStorages.remove(payload.nameOfCommunity);
+
+    // Remove from user's created community array
+    const user = userStorages.get(community.members[0]).Some;
+    user.groupsCreated = user.groupsCreated.filter((name) => name !== payload.nameOfCommunity);
+    userStorages.insert(community.members[0], user);
+
+    return Ok(`${payload.nameOfCommunity} has been successfully deleted`);
+  }),
+
+  // User joins a community
+  joinCommunity: update([JoinCommunityPayload], Result(text, CommunityAppErrors), (payload) => {
+    if (!payload.groupName || !payload.username) {
+      return Err({ CredentialsMissing: "Missing credentials" });
+    }
+
+    const user = userStorages.get(payload.username).Some;
+    if (!user) {
+      return Err({
+        UserDoesNotExist: `User with username ${payload.username} does not exist`,
+      });
+    }
+
+    const community = communitiesStorage.get(payload.groupName).Some;
+    if (!community) {
+      return Err({
+        CommunityDoesNotExist: `Community with name ${payload.groupName} does not exist`,
+      });
+    }
+
+    if (checkIfUserInCommunity(payload.username, community)) {
+      return Err({
+        AlreadyAMember: "User is already a member of the community",
+      });
+    }
+
+    community.members.push(payload.username);
+    communitiesStorage.insert(payload.groupName, community);
+
+    return Ok(`Successfully joined ${payload.groupName} community`);
+  }),
+
+  // User exits a community
+  exitCommunity: update([ExitCommunityPayload], Result(text, CommunityAppErrors), (payload) => {
+    if (!payload.groupName || !payload.username) {
+      return Err({ CredentialsMissing: "Some credentials are missing" });
+    }
+
+    const user = userStorages.get(payload.username).Some;
+    if (!user) {
+      return Err({
+        UserDoesNotExist: `User with username ${payload.username} does not exist`,
+      });
+    }
+
+    const community = communitiesStorage.get(payload.groupName).Some;
+    if (!community) {
+      return Err({
+        CommunityDoesNotExist: `Community with name ${payload.groupName} does not exist`,
+      });
+    }
+
+    if (!checkIfUserInCommunity(payload.username, community)) {
+      return Err({
+        NotAMemberOfGroup: `User with username ${payload.username} is not a member of the community`,
+      });
+    }
+
+    community.members = community.members.filter((member) => member !== payload.username);
+    communitiesStorage.insert(payload.groupName, community);
+
+    return Ok("Successfully exited the community");
+  }),
+
+  // Owner removes a user from the community
+  removeUser: update([RemoveUserPayload], Result(text, CommunityAppErrors), (payload) => {
+    if (!payload.nameOfCommunity || !payload.owner || !payload.user) {
+      return Err({ CredentialsMissing: "Some credentials are missing" });
+    }
+
+    const community = communitiesStorage.get(payload.nameOfCommunity).Some;
+    if (!community) {
+      return Err({
+        CommunityDoesNotExist: `Community ${payload.nameOfCommunity} does not exist`,
+      });
+    }
+
+    if (community.owner.toText() !== payload.owner.toText()) {
+      return Err({ OnlyOwnerCanDelete: "Only the owner can remove users" });
+    }
+
+    if (!checkIfUserExists(payload.user)) {
+      return Err({
+        UserDoesNotExist: `User with username ${payload.user} does not exist`,
+      });
+    }
+
+    if (!checkIfUserInCommunity(payload.user, community)) {
+      return Err({
+        NotAMemberOfGroup: `User with username ${payload.user} is not a member of the community`,
+      });
+    }
+
+    community.members = community.members.filter((member) => member !== payload.user);
+    communitiesStorage.insert(payload.nameOfCommunity, community);
+
+    return Ok(`Successfully removed ${payload.user}`);
+  }),
+
+  // Send a message to the community group
+  sendMessageToGroup: update([SendMessagePayload], Result(text, CommunityAppErrors), (payload) => {
+    if (!payload.communityName || !payload.messageToSend) {
+      return Err({ CredentialsMissing: "Missing credentials" });
+    }
+
+    const community = communitiesStorage.get(payload.communityName).Some;
+    if (!community) {
+      return Err({
+        CommunityDoesNotExist: `Community ${payload.communityName} does not exist`,
+      });
+    }
+
+    const user = userStorages.get(payload.username).Some;
+    if (!user) {
+      return Err({
+        UserDoesNotExist: "You must be registered in order to send messages to the community",
+      });
+    }
+
+    if (!checkIfUserInCommunity(payload.username, community)) {
+      return Err({
+        NotAMemberOfGroup: `User with username ${payload.username} is not a member of the community`,
+      });
+    }
+
+    const newMessage: Message = {
+      id: generateId(),
+      sender: ic.caller(),
+      messageText: payload.messageToSend,
+      createdAt: ic.time(),
+    };
+
+    community.messages.push(newMessage);
+    communitiesStorage.insert(payload.communityName, community);
+
+    return Ok("Message sent successfully");
+  }),
+
+  // Get all messages from the community
+  getAllMessagesFromCommunity: query(
+    [MessageRetrieverPayload],
+    Result(Vec(Message), CommunityAppErrors),
+    (payload) => {
       if (!payload.groupName || !payload.username) {
-        return "missing credentials";
+        return Err({ CredentialsMissing: "Some credentials are missing" });
       }
-      //check if user is already registered
-      const getUser = userStorages.get(payload.username).Some;
-      if (!getUser) {
-        return `user with given ${payload.username} deos not exist`;
+
+      const user = userStorages.get(payload.username).Some;
+      if (!user) {
+        return Err({
+          UserDoesNotExist: "You must be registered in order to send messages to the community",
+        });
       }
-      //check if group already exist
-      const getGroup = communitiesStorage.get(payload.groupName).Some;
-      if (!getGroup) {
-        return `${payload.groupName} does not exist`;
+
+      const community = communitiesStorage.get(payload.groupName).Some;
+      if (!community) {
+        return Err({
+          CommunityDoesNotExist: `Community ${payload.groupName} does not exist`,
+        });
       }
-  
-      //check if user is already in the community group
-      const checkUser = getGroup.members.find((val) => val == payload.username);
-      if (checkUser) {
-        return "already member of the community";
+
+      if (!checkIfUserInCommunity(payload.username, community)) {
+        return Err({
+          NotAMemberOfGroup: "You are not a member of the community",
+        });
       }
-      const updatedGroup: Communities = {
-        ...getGroup,
-        members: [...getGroup.members, payload.username],
-      };
-      communitiesStorage.insert(payload.groupName, updatedGroup);
-      return `successfully joined ${payload.groupName} communities`;
-    }),
-    //exit community group
-    existGroup: update(
-      [exitCommunityPayload],
-      Result(text, communityAppErrors),
-      (payload) => {
-        if (!payload.groupName || !payload.username) {
-          return Err({ credentialsMissing: "some credentials are missing" });
-        }
-        //check if user and community group both exist
-        const getUser = userStorages.get(payload.username).Some;
-        if (!getUser) {
-          return Err({
-            UserDoesNotExist: `user with ${payload.username} doest not exist`,
-          });
-        }
-        //check if community group  exist
-        const getGroup = communitiesStorage.get(payload.groupName).Some;
-        if (!getGroup) {
-          return Err({
-            communityDoesNotExist: `community with ${payload.groupName} doest not exist`,
-          });
-        }
-        //check if user is in the community group
-        const checkUser = getGroup.members.find((val) => val == payload.username);
-        if (!checkUser) {
-          return Err({
-            UserDoesNotExist: `user with ${payload.username} doest not exist in the community group`,
-          });
-        }
-        //exit community group
-        const updatedCommunity: Communities = {
-          ...getGroup,
-          members: getGroup.members.filter((val) => payload.username !== val),
-        };
-        communitiesStorage.insert(payload.groupName, updatedCommunity);
-        return Ok("successfully existed the group");
-      }
-    ),
-    //owner o community group remove a user from the community group
-    removeUser: update(
-      [removeUserPayload],
-      Result(text, communityAppErrors),
-      (payload) => {
-        if (!payload.nameOfCommunity || !payload.owner || !payload.user) {
-          return Err({ credentialsMissing: "some credentials are missings" });
-        }
-        //verify its the owner removing user
-        const getCommunity = communitiesStorage.get(payload.nameOfCommunity).Some;
-        if (!getCommunity) {
-          return Err({
-            communityDoesNotExist: `community ${payload.nameOfCommunity} deos not exist`,
-          });
-        }
-        if (getCommunity.owner.toText() !== payload.owner.toText()) {
-          return Err({ onlyOwnerCanDelete: "only owner can remove users" });
-        }
-        //check if user is registered
-        const getUser = userStorages.get(payload.user).Some;
-        if (!getUser) {
-          return Err({
-            UserDoesNotExist:
-              "you must been registered inorder to send messages to the community",
-          });
-        }
-        //check if user is in the community group
-        const checkUser = getCommunity.members.find((val) => val == payload.user);
-        if (!checkUser) {
-          return Err({
-            UserDoesNotExist: `user with ${payload.user} doest not exist in the group`,
-          });
-        }
-        const updatedCommunity: Communities = {
-          ...getCommunity,
-          members: getCommunity.members.filter((val) => payload.user !== val),
-        };
-        communitiesStorage.insert(payload.nameOfCommunity, updatedCommunity);
-        return Ok(`successfully removed ${payload.user}`);
-      }
-    ),
-  
-    //send a message to the cmmunity group
-    sendMesageToGroup: update(
-      [sendMessagePayLoad],
-      Result(text, communityAppErrors),
-      (payload) => {
-        if (!payload.communityName || !payload.messageToSend) {
-          return Err({ credentialsMissing: "missing credentials" });
-        }
-        const getCommunity = communitiesStorage.get(payload.communityName).Some;
-        if (!getCommunity) {
-          return Err({
-            communityDoesNotExist: `community ${payload.communityName} does not exist`,
-          });
-        }
-        //check if user is registered
-        const getUser = userStorages.get(payload.username).Some;
-        if (!getUser) {
-          return Err({
-            UserDoesNotExist:
-              "you must been registered inorder to send messages to the community",
-          });
-        }
-        //check if user is a member of the community  group
-        const checkUser = getCommunity.members.find(
-          (val) => val == payload.username
-        );
-        if (!checkUser) {
-          return Err({
-            NotAMemberOfGroup: `user with ${payload.username} not a member of the group`,
-          });
-        }
-        const newMessage: message = {
-          id: generateId(),
-          sender: ic.caller(),
-          messageText: payload.messageToSend,
-          createdAt: ic.time(),
-        };
-        const updateCommunity: Communities = {
-          ...getCommunity,
-          messages: [...getCommunity.messages, newMessage],
-        };
-        communitiesStorage.insert(payload.communityName, updateCommunity);
-        return Ok("message sent successfully");
-      }
-    ),
-    //get all messages from the group
-    getAllMessageFromCommunity: query(
-      [messageRetriverPayLoad],
-      Result(Vec(message), communityAppErrors),
-      (payload) => {
-        if (!payload.groupname || !payload.username) {
-          return Err({ credentialsMissing: "some credentials are missing" });
-        }
-        //check if user is registered
-        const getUser = userStorages.get(payload.username).Some;
-        if (!getUser) {
-          return Err({
-            UserDoesNotExist:
-              "you must been registered inorder to send messages to the community",
-          });
-        }
-        //chck if user is a member of the community and also if community exist
-        const getCommunity = communitiesStorage.get(payload.groupname).Some;
-        if (!getCommunity) {
-          return Err({
-            communityDoesNotExist: `community ${payload.groupname} does not exist`,
-          });
-        }
-        //check if user is in the group
-        const checkUser = getCommunity.members.find(
-          (val) => val == payload.username
-        );
-        if (!checkUser) {
-          return Err({ NotAMemberOfGroup: "you are not a member of the group" });
-        }
-  
-        return Ok(getCommunity.messages);
-      }
-    ),
-  });
-  
-  //function to generate Principals ids
-  
-  function generateId(): Principal {
-    const randomBytes = new Array(29)
-      .fill(0)
-      .map((_) => Math.floor(Math.random() * 256));
-    return Principal.fromUint8Array(Uint8Array.from(randomBytes));
-  }
-  
+
+      return Ok(community.messages);
+    }
+  ),
+});

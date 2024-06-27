@@ -1,0 +1,1 @@
+{"canister_methods":{"queries":[{"name":"getAllCommunities","composite":false},{"name":"getAllMessageFromCommunity","composite":false}],"updates":[{"name":"registerUser"},{"name":"createCommunity"},{"name":"deleteCommunity"},{"name":"joinGroup"},{"name":"existGroup"},{"name":"removeUser"},{"name":"sendMesageToGroup"}],"callbacks":{}}}

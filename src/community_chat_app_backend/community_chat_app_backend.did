@@ -1,11 +1,171 @@
 service: () -> {
-    createCommunity: (record {usernameOfCreator:text; nameOfCommunity:text}) -> (variant {Ok:text; Err:variant {NoMessageWithSuchId:text; NotAMemberOfGroup:text; communityDoesNotExist:text; credentialsMissing:text; usernameIsRequired:text; onlyOwnerCanDelete:text; GroupNameIsRequired:text; userNameAlreadyExist:text; communityAlreadyExist:text; EnterCorrectDetais:text; UserDoesNotExist:text; ErrorWhenExitingGropu:text; AlreadyAmember:text}});
-    deleteCommunity: (record {owner:principal; nameOfCommunty:text}) -> (variant {Ok:text; Err:variant {NoMessageWithSuchId:text; NotAMemberOfGroup:text; communityDoesNotExist:text; credentialsMissing:text; usernameIsRequired:text; onlyOwnerCanDelete:text; GroupNameIsRequired:text; userNameAlreadyExist:text; communityAlreadyExist:text; EnterCorrectDetais:text; UserDoesNotExist:text; ErrorWhenExitingGropu:text; AlreadyAmember:text}});
-    existGroup: (record {username:text; groupName:text}) -> (variant {Ok:text; Err:variant {NoMessageWithSuchId:text; NotAMemberOfGroup:text; communityDoesNotExist:text; credentialsMissing:text; usernameIsRequired:text; onlyOwnerCanDelete:text; GroupNameIsRequired:text; userNameAlreadyExist:text; communityAlreadyExist:text; EnterCorrectDetais:text; UserDoesNotExist:text; ErrorWhenExitingGropu:text; AlreadyAmember:text}});
-    getAllCommunities: () -> (vec record {owner:principal; name:text}) query;
-    getAllMessageFromCommunity: (record {username:text; groupname:text}) -> (variant {Ok:vec record {id:principal; createdAt:nat64; sender:principal; messageText:text}; Err:variant {NoMessageWithSuchId:text; NotAMemberOfGroup:text; communityDoesNotExist:text; credentialsMissing:text; usernameIsRequired:text; onlyOwnerCanDelete:text; GroupNameIsRequired:text; userNameAlreadyExist:text; communityAlreadyExist:text; EnterCorrectDetais:text; UserDoesNotExist:text; ErrorWhenExitingGropu:text; AlreadyAmember:text}}) query;
-    joinGroup: (record {username:text; groupName:text}) -> (text);
-    registerUser: (record {username:text}) -> (variant {Ok:text; Err:variant {NoMessageWithSuchId:text; NotAMemberOfGroup:text; communityDoesNotExist:text; credentialsMissing:text; usernameIsRequired:text; onlyOwnerCanDelete:text; GroupNameIsRequired:text; userNameAlreadyExist:text; communityAlreadyExist:text; EnterCorrectDetais:text; UserDoesNotExist:text; ErrorWhenExitingGropu:text; AlreadyAmember:text}});
-    removeUser: (record {owner:principal; user:text; nameOfCommunity:text}) -> (variant {Ok:text; Err:variant {NoMessageWithSuchId:text; NotAMemberOfGroup:text; communityDoesNotExist:text; credentialsMissing:text; usernameIsRequired:text; onlyOwnerCanDelete:text; GroupNameIsRequired:text; userNameAlreadyExist:text; communityAlreadyExist:text; EnterCorrectDetais:text; UserDoesNotExist:text; ErrorWhenExitingGropu:text; AlreadyAmember:text}});
-    sendMesageToGroup: (record {username:text; communityName:text; messageToSend:text}) -> (variant {Ok:text; Err:variant {NoMessageWithSuchId:text; NotAMemberOfGroup:text; communityDoesNotExist:text; credentialsMissing:text; usernameIsRequired:text; onlyOwnerCanDelete:text; GroupNameIsRequired:text; userNameAlreadyExist:text; communityAlreadyExist:text; EnterCorrectDetais:text; UserDoesNotExist:text; ErrorWhenExitingGropu:text; AlreadyAmember:text}});
+    createCommunity: (record {
+        usernameOfCreator: text; 
+        nameOfCommunity: text
+    }) -> (variant {
+        Ok: text; 
+        Err: variant {
+            NoMessageWithSuchId: text; 
+            NotAMemberOfGroup: text; 
+            communityDoesNotExist: text; 
+            credentialsMissing: text; 
+            usernameIsRequired: text; 
+            onlyOwnerCanDelete: text; 
+            GroupNameIsRequired: text; 
+            userNameAlreadyExist: text; 
+            communityAlreadyExist: text; 
+            EnterCorrectDetais: text; 
+            UserDoesNotExist: text; 
+            ErrorWhenExitingGropu: text; 
+            AlreadyAmember: text
+        }
+    });
+
+    deleteCommunity: (record {
+        owner: principal; 
+        nameOfCommunty: text
+    }) -> (variant {
+        Ok: text; 
+        Err: variant {
+            NoMessageWithSuchId: text; 
+            NotAMemberOfGroup: text; 
+            communityDoesNotExist: text; 
+            credentialsMissing: text; 
+            usernameIsRequired: text; 
+            onlyOwnerCanDelete: text; 
+            GroupNameIsRequired: text; 
+            userNameAlreadyExist: text; 
+            communityAlreadyExist: text; 
+            EnterCorrectDetais: text; 
+            UserDoesNotExist: text; 
+            ErrorWhenExitingGropu: text; 
+            AlreadyAmember: text
+        }
+    });
+
+    existGroup: (record {
+        username: text; 
+        groupName: text
+    }) -> (variant {
+        Ok: text; 
+        Err: variant {
+            NoMessageWithSuchId: text; 
+            NotAMemberOfGroup: text; 
+            communityDoesNotExist: text; 
+            credentialsMissing: text; 
+            usernameIsRequired: text; 
+            onlyOwnerCanDelete: text; 
+            GroupNameIsRequired: text; 
+            userNameAlreadyExist: text; 
+            communityAlreadyExist: text; 
+            EnterCorrectDetais: text; 
+            UserDoesNotExist: text; 
+            ErrorWhenExitingGropu: text; 
+            AlreadyAmember: text
+        }
+    });
+
+    getAllCommunities: () -> (vec record {
+        owner: principal; 
+        name: text
+    }) query;
+
+    getAllMessageFromCommunity: (record {
+        username: text; 
+        groupname: text
+    }) -> (variant {
+        Ok: vec record {
+            id: principal; 
+            createdAt: nat64; 
+            sender: principal; 
+            messageText: text
+        }; 
+        Err: variant {
+            NoMessageWithSuchId: text; 
+            NotAMemberOfGroup: text; 
+            communityDoesNotExist: text; 
+            credentialsMissing: text; 
+            usernameIsRequired: text; 
+            onlyOwnerCanDelete: text; 
+            GroupNameIsRequired: text; 
+            userNameAlreadyExist: text; 
+            communityAlreadyExist: text; 
+            EnterCorrectDetais: text; 
+            UserDoesNotExist: text; 
+            ErrorWhenExitingGropu: text; 
+            AlreadyAmember: text
+        }
+    }) query;
+
+    joinGroup: (record {
+        username: text; 
+        groupName: text
+    }) -> (text);
+
+    registerUser: (record {
+        username: text
+    }) -> (variant {
+        Ok: text; 
+        Err: variant {
+            NoMessageWithSuchId: text; 
+            NotAMemberOfGroup: text; 
+            communityDoesNotExist: text; 
+            credentialsMissing: text; 
+            usernameIsRequired: text; 
+            onlyOwnerCanDelete: text; 
+            GroupNameIsRequired: text; 
+            userNameAlreadyExist: text; 
+            communityAlreadyExist: text; 
+            EnterCorrectDetais: text; 
+            UserDoesNotExist: text; 
+            ErrorWhenExitingGropu: text; 
+            AlreadyAmember: text
+        }
+    });
+
+    removeUser: (record {
+        owner: principal; 
+        user: text; 
+        nameOfCommunity: text
+    }) -> (variant {
+        Ok: text; 
+        Err: variant {
+            NoMessageWithSuchId: text; 
+            NotAMemberOfGroup: text; 
+            communityDoesNotExist: text; 
+            credentialsMissing: text; 
+            usernameIsRequired: text; 
+            onlyOwnerCanDelete: text; 
+            GroupNameIsRequired: text; 
+            userNameAlreadyExist: text; 
+            communityAlreadyExist: text; 
+            EnterCorrectDetais: text; 
+            UserDoesNotExist: text; 
+            ErrorWhenExitingGropu: text; 
+            AlreadyAmember: text
+        }
+    });
+
+    sendMesageToGroup: (record {
+        username: text; 
+        communityName: text; 
+        messageToSend: text
+    }) -> (variant {
+        Ok: text; 
+        Err: variant {
+            NoMessageWithSuchId: text; 
+            NotAMemberOfGroup: text; 
+            communityDoesNotExist: text; 
+            credentialsMissing: text; 
+            usernameIsRequired: text; 
+            onlyOwnerCanDelete: text; 
+            GroupNameIsRequired: text; 
+            userNameAlreadyExist: text; 
+            communityAlreadyExist: text; 
+            EnterCorrectDetais: text; 
+            UserDoesNotExist: text; 
+            ErrorWhenExitingGropu: text; 
+            AlreadyAmember: text
+        }
+    });
 }

@@ -1,0 +1,28 @@
+{
+  "canisters": {
+    "community_chat_app_backend": {
+      "build": "npx azle community_chat_app_backend",
+      "candid": "src/community_chat_app_backend/community_chat_app_backend.did",
+      "gzip": true,
+      "main": "src/community_chat_app_backend/src/index.ts",
+      "tech_stack": {
+        "cdk": {
+          "azle": {}
+        },
+        "language": {
+          "typescript": {}
+        }
+      },
+      "type": "custom",
+      "wasm": ".azle/community_chat_app_backend/community_chat_app_backend.wasm"
+    }
+  },
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": ""
+    }
+  },
+  "output_env_file": ".env",
+  "version": 1
+}
